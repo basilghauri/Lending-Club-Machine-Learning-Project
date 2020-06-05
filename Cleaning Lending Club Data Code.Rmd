@@ -1,0 +1,99 @@
+---
+title: "STAT 652 Project"
+author: "Basil Ghauri"
+date: "2/26/2020"
+output: html_document
+---
+```{r}
+library(dplyr)
+library(tidyverse)
+library(rpart)
+library(rpart.plot)
+library(lubridate)
+library(pacman)
+library(Amelia)
+```
+
+# Cleaning Data
+
+```{r}
+lendc=read.csv(file = "data/accepted_2007_to_2018Q4.csv")
+```
+
+```{r}
+# Putting NA values in empty spaces
+
+lendc[lendc==""]=NA
+```
+
+```{r}
+head(lendc)
+```
+
+```{r}
+# Removing columns with more then 25% NA values. 
+lendc=lendc[,-which(colMeans(is.na(lendc))>0.10)]
+```
+
+```{r}
+
+lendc$issue_date=parse_date_time(lendc$issue_d,"my")
+```
+
+```{r}
+lendclub=lendc%>%
+  filter(issue_date>="2012-01-01"&issue_date<="2015-12-01")
+```
+
+```{r}
+head(lendclub)
+```
+
+```{r}
+lendclub%>%
+  select(loan_status)%>%
+  group_by(loan_status)%>%
+  summarise(n=n())
+```
+
+
+```{r}
+lendclub=lendclub%>%
+  subset(loan_status=="Fully Paid"|loan_status=="Charged Off")
+
+```
+
+```{r}
+lendclub%>%
+  select(loan_status)%>%
+  group_by(loan_status)%>%
+  summarise(n=n())
+```
+
+```{r}
+# Convert Loan Status into 
+lendclub=lendclub%>%
+  mutate(loan_status=ifelse(loan_status=="Charged Off",0,1))
+
+```
+
+```{r}
+lendclub=lendclub%>%
+  select(-id,zip_code,-url,-pymnt_plan,-addr_state,-disbursement_method,-last_pymnt_d,-initial_list_status,-emp_title,-emp_length,-grade)
+```
+
+
+
+```{r}
+lendclub=lendclub%>%
+  select(-id,-member_id,-issue_d,-url,-zip_code)
+```
+
+
+
+
+```{r}
+# Exporting csv file.
+write.csv(lendclub,"D:\\Spring 2020\\STAT 652\\GHAURI_BASIL_STAT652_PROJECT\\Lending Club.csv",row.names=FALSE)
+```
+

@@ -1,0 +1,167 @@
+---
+title: "STAT 652 Project Prediction Models"
+output: html_notebook
+---
+
+```{r}
+library(tidyverse)
+library(dplyr)
+library(knitr)
+library(caret)
+```
+
+```{r}
+lendclub=read.csv(file = "data/Lending Club.csv")
+```
+
+```{r}
+head(lendclub)
+```
+
+```{r}
+# Removing NA values
+lendclub=na.omit(lendclub)
+```
+
+```{r}
+# Keeping variables with 1 unique value
+imp <- c()
+unique_vals <- sapply(lendclub, function(x) length(unique(x)))
+for(key in names(unique_vals)){
+value<-unique_vals[key]
+if(value > 1) {
+imp <- append(imp,key)
+}
+}
+lendclub=lendclub[imp]
+```
+
+```{r}
+# Cleanin the data
+imp2<- c()
+complete<-sapply(lendclub,function(x) sum(!is.na(x))/length(x))
+for(key in names(complete)){
+val<- complete[key]
+if(val>=0.75){
+imp2<-append(imp2,key)
+}
+}
+lendclub<-lendclub[imp2]
+dim(lendclub)
+```
+
+
+
+
+```{r}
+# Removing Factors and Character columns from dataset
+library(taRifx)
+lendclub2=remove.factors(lendclub)
+
+lendclub2=lendclub2[,-which(sapply(lendclub2,class)== "character")]
+```
+
+
+```{r}
+# Taking a sample of 30,000.
+set.seed(1234)
+
+lendclub3=lendclub2[sample(nrow(lendclub2),30000),]
+```
+
+## Running Random Forest to select Predictor Variable
+```{r}
+library(randomForest)
+
+rf_model=randomForest(loan_status~.,data=lendclub3,ntree=201,mtry=3)
+```
+
+```{r}
+importance(rf_model)
+```
+
+
+```{r}
+# Cleaning the Data Further by individually selecting the Predictor Variables.
+
+lendclub4=lendclub2%>%
+  select(-total_pymnt,-total_pymnt_inv,-recoveries,-collection_recovery_fee,-last_pymnt_amnt,-last_fico_range_high,-last_fico_range_low,-total_rec_prncp,-funded_amnt_inv)
+
+```
+
+
+## Logisitc Regression Model n = 300,000
+
+
+```{r}
+lendclub5=lendclub4[sample(nrow(lendclub4),300000),]
+```
+
+```{r}
+# Setup Train and Test Dataset
+indx=sample(1:nrow(lendclub5),as.integer(0.75*nrow(lendclub5)))
+lendclub_train=lendclub5[indx,]
+lendclub_test=lendclub5[-indx,]
+
+```
+
+## Logisitc Regression Model
+
+
+```{r}
+lr_model=glm(loan_status~.,family = binomial(link = "logit"),data = lendclub_train)
+summary(lr_model)
+```
+
+```{r}
+pred_regression=predict(lr_model,newdata = lendclub_test,type = "response")
+```
+
+```{r}
+pred_regression=ifelse(pred_regression>0.5,1,0)
+```
+
+```{r}
+t1=table(lendclub_test$loan_status,pred_regression)
+t1
+prop.table(t1)
+sum(diag(t1))/sum(t1)
+```
+
+### We have an accuracy of 81.97% for the Logisitc Regression Model.
+
+## Improving the Logisitic Regression
+
+```{r}
+lr_model2=glm(loan_status~loan_amnt+int_rate+installment+dti+delinq_2yrs+inq_last_6mths+open_acc+revol_bal+total_rec_int+total_rec_late_fee+collections_12_mths_ex_med+acc_open_past_24mths+avg_cur_bal+bc_util+mo_sin_rcnt_tl+mort_acc +mths_since_recent_bc+num_actv_rev_tl+num_rev_tl_bal_gt_0+num_sats+percent_bc_gt_75+tot_hi_cred_lim+total_bal_ex_mort+total_bc_limit+total_il_high_credit_limit,family = binomial(link = "logit"),data = lendclub_train)
+summary(lr_model2)
+```
+
+```{r}
+pred_regression2=predict(lr_model,newdata = lendclub_test,type = "response")
+
+pred_regression2=ifelse(pred_regression2>0.5,1,0)
+```
+
+```{r}
+t2=table(lendclub_test$loan_status,pred_regression2)
+t2
+prop.table(t2)
+sum(diag(t2))/sum(t2)
+```
+
+
+```{r}
+library(gmodels)
+
+CrossTable(lendclub_test$loan_status,pred_regression,prop.chisq = FALSE,prop.c = FALSE,prop.r = FALSE)
+```
+
+
+
+
+
+
+
+
+
